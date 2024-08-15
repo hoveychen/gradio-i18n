@@ -80,7 +80,7 @@ else:
 #     gradio_i18n.translate_blocks(block, lang_store)
 
 collected_texts = gradio_i18n.dump_blocks(block, langs=["zh", "en"], include_translations=lang_store)
-yaml.safe_dump(collected_texts, open(trans_file, "w"))
+yaml.safe_dump(collected_texts, open(trans_file, "w"), allow_unicode=True)
 ```
 
 
