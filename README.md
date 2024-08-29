@@ -1,6 +1,9 @@
 # gradio-i18n
 
-<a href="https://pypi.org/project/gradio-i18n/" target="_blank"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/gradio-i18n"></a> <a href="https://github.com/hoveychen/gradio-i18n/issues" target="_blank"><img alt="Static Badge" src="https://img.shields.io/badge/Issues-white?logo=github&logoColor=black"></a> 
+![GitHub License](https://img.shields.io/github/license/hoveychen/gradio-i18n)
+![PyPI - Version](https://img.shields.io/pypi/v/gradio-i18n)
+[![Huggingface](https://img.shields.io/badge/🤗%20-online%20demo-yellow.svg)](https://huggingface.co/spaces/hoveyc/gradio-i18n)
+
 
 Reactive Multi-language Gradio App with minimal effort. Enables Gradio app displayiing localized UI responding to the browser language settings.
 
