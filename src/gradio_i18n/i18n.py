@@ -49,7 +49,9 @@ def dump_blocks(block: Block, langs=["en"], include_translations={}):
     return ret
 
 
-def translate_blocks(block: gr.Blocks = None, translation={}, state: gr.State = None):
+def translate_blocks(
+    block: gr.Blocks = None, translation={}, lang_state: gr.State = None
+):
     if block is None:
         block = Context.root_block
 
@@ -62,21 +64,12 @@ def translate_blocks(block: gr.Blocks = None, translation={}, state: gr.State = 
     def get(lang, key):
         return translation.get(lang, {}).get(key, key)
 
-    def set_lang(request: gr.Request, state):
-        if state is None:
-            state = {}
-        try:
-            lang = (
-                request.headers["Accept-Language"].split(",")[0].split("-")[0].lower()
-            )
-            if not lang:
-                lang = "en"
-                return
-        finally:
-            if isinstance(state, dict):
-                state["lang"] = lang
+    def set_lang(request: gr.Request):
+        lang = request.headers["Accept-Language"].split(",")[0].split("-")[0].lower()
+        if not lang:
+            return
 
-        outputs = [state]
+        outputs = [lang]
         for component in components:
             fields = list(iter_i18n_fields(component))
 
@@ -89,7 +82,7 @@ def translate_blocks(block: gr.Blocks = None, translation={}, state: gr.State = 
 
         return outputs
 
-    if state is None:
-        state = gr.State()
+    if lang_state is None:
+        lang_state = gr.State()
 
-    block.load(set_lang, inputs=[state], outputs=[state] + components)
+    block.load(set_lang, outputs=[lang_state] + components)

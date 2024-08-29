@@ -59,21 +59,23 @@ demo.launch()
 > Keep in mind that the translate_blocks() function MUST BE called in the gradio block context (`with`)
 
 ## Get current language
-Except for automatically translated text value in Gradio components, user may expect to get the current language of the user for localizing contents. To get the current language, simply pass a `gradio.State` into arguments of `translate_blocks()`, and you will get the language value in `"lang"` key in the input state object.
+Except for automatically translated text value in Gradio components, user may expect to get the current language of the user for localizing contents. To get the current language, simply pass a `gradio.State` into arguments of `translate_blocks()`, and you will get the language value in the object.
 
 Example:
 ```python
 import gradio as gr
 import gradio_i18n
 
-def get_lang(state):
-    return state, state["lang"]
+def get_lang(lang):
+    return f"You are using language: {lang}"
+
 
 with gr.Blocks() as block:
-    state = gr.State()
+    lang = gr.State()
     display_lang = gr.Text()
-    gr.Interface(get_lang, inputs=[state], outputs=[state, display_lang])
-    gradio_i18n.translate_blocks(state=state)
+    btn = gr.Button()
+    btn.click(get_lang, inputs=[lang], outputs=[display_lang])
+    gradio_i18n.translate_blocks(lang_state=lang)
 
 block.launch()
 ```
