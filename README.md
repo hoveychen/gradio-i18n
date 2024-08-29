@@ -49,7 +49,7 @@ with gr.Interface(
     outputs=gr.Textbox(label=gettext("Greeting")),
     submit_btn=gettext("Submit"),
 ) as demo:
-    translate_blocks(demo, lang_store)
+    translate_blocks(translation=lang_store)
 
 demo.launch()
 
@@ -73,7 +73,7 @@ with gr.Blocks() as block:
     state = gr.State()
     display_lang = gr.Text()
     gr.Interface(get_lang, inputs=[state], outputs=[state, display_lang])
-    gradio_i18n.translate_blocks(block, {}, state)
+    gradio_i18n.translate_blocks(state=state)
 
 block.launch()
 ```

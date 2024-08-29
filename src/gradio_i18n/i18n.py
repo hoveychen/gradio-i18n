@@ -1,7 +1,7 @@
 import inspect
 
 import gradio as gr
-from gradio.blocks import Block, BlockContext
+from gradio.blocks import Block, BlockContext, Context
 
 
 class I18nString(str):
@@ -49,7 +49,10 @@ def dump_blocks(block: Block, langs=["en"], include_translations={}):
     return ret
 
 
-def translate_blocks(block: gr.Blocks, translation={}, state: gr.State = None):
+def translate_blocks(block: gr.Blocks = None, translation={}, state: gr.State = None):
+    if block is None:
+        block = Context.root_block
+
     """Translate all I18nStrings in the block"""
     if not isinstance(block, gr.Blocks):
         raise ValueError("block must be an instance of gradio.Blocks")
@@ -89,4 +92,4 @@ def translate_blocks(block: gr.Blocks, translation={}, state: gr.State = None):
     if state is None:
         state = gr.State()
 
-    block.load(set_lang, inputs=[state], outputs=components + [state])
+    block.load(set_lang, inputs=[state], outputs=[state] + components)
