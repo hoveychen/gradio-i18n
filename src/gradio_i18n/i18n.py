@@ -49,7 +49,7 @@ def dump_blocks(block: Block, langs=["en"], include_translations={}):
     return ret
 
 
-def translate_blocks(block: gr.Blocks, translation={}):
+def translate_blocks(block: gr.Blocks, translation={}, state: gr.State = None):
     """Translate all I18nStrings in the block"""
     if not isinstance(block, gr.Blocks):
         raise ValueError("block must be an instance of gradio.Blocks")
@@ -59,23 +59,34 @@ def translate_blocks(block: gr.Blocks, translation={}):
     def get(lang, key):
         return translation.get(lang, {}).get(key, key)
 
-    def set_lang(request: gr.Request):
-        lang = request.headers["Accept-Language"].split(",")[0].split("-")[0].lower()
-        if not lang:
-            return
+    def set_lang(request: gr.Request, state):
+        if state is None:
+            state = {}
+        try:
+            lang = (
+                request.headers["Accept-Language"].split(",")[0].split("-")[0].lower()
+            )
+            if not lang:
+                lang = "en"
+                return
+        finally:
+            if isinstance(state, dict):
+                state["lang"] = lang
 
-        outputs = []
+        outputs = [state]
         for component in components:
             fields = list(iter_i18n_fields(component))
 
             modified = {field: get(lang, getattr(component, field)) for field in fields}
-            new_comp = component.__class__(**modified)
+            new_comp = gr.update(**modified)
             outputs.append(new_comp)
 
         if len(outputs) == 1:
             return outputs[0]
-        else:
-            return outputs
 
-    block.load(set_lang, None, outputs=components)
+        return outputs
 
+    if state is None:
+        state = gr.State()
+
+    block.load(set_lang, inputs=[state], outputs=components + [state])
