@@ -6,7 +6,7 @@ from contextlib import contextmanager
 
 import gradio as gr
 import yaml
-from gradio.blocks import Block, BlockContext, Context
+from gradio.blocks import Block, BlockContext, Context, LocalContext
 
 
 # Monkey patch to escape I18nString type being stripped in gradio.Markdown
@@ -23,9 +23,64 @@ def escape_caller(func):
 inspect.cleandoc = escape_caller(inspect.cleandoc)
 
 
+class TranslateContext:
+    dictionary: dict = {}
+
+    def add_translation(translation: dict):
+        for k, v in translation.items():
+            if k not in TranslateContext.dictionary:
+                TranslateContext.dictionary[k] = {}
+            TranslateContext.dictionary[k].update(v)
+
+    lang_per_session = {}
+
+
+def get_lang_from_request(request: gr.Request):
+    lang = request.headers["Accept-Language"].split(",")[0].split("-")[0].lower()
+    if not lang:
+        return "en"
+    return lang
+
+
 class I18nString(str):
     def __str__(self):
-        return self
+        request: gr.Request = LocalContext.request.get()
+        if request is None:
+            return self
+
+        lang = TranslateContext.lang_per_session.get(request.session_hash, 'en')
+        result = TranslateContext.dictionary.get(lang, {}).get(self, super().__str__())
+        return result
+
+    def __add__(self, other):
+        v = str(self)
+        if isinstance(v, I18nString):
+            return super().__add__(other)
+        return v.__add__(other)
+
+    def __radd__(self, other):
+        v = str(self)
+        if isinstance(v, I18nString):
+            return other.__add__(other)
+        return other.__add__(v)
+
+    def __hash__(self) -> int:
+        return super().__hash__()
+
+    def format(self, *args, **kwargs) -> str:
+        v = str(self)
+        if isinstance(v, I18nString):
+            return super().format(*args, **kwargs)
+        return v.format(*args, **kwargs)
+
+    def unwrap(self):
+        return super().__str__()
+
+    @staticmethod
+    def unwrap_string(obj):
+        if isinstance(obj, I18nString):
+            return obj.unwrap()
+        return obj
 
 
 def gettext(key: str):
@@ -126,10 +181,11 @@ def dump_blocks(block: Block, langs=["en"], include_translations={}):
                             value = component.choices[idx][0]
                         else:
                             value = component.choices[idx]
-                        value = "" + value
+                        value = I18nString.unwrap_string(value)
                         ret[lang][value] = translate(lang, value)
                 else:
-                    value = "" + getattr(component, field)
+                    value = getattr(component, field)
+                    value = I18nString.unwrap_string(value)
                     ret[lang][value] = translate(lang, value)
 
     return ret
@@ -151,17 +207,14 @@ def translate_blocks(
         raise ValueError("block must be an instance of gradio.Blocks")
 
     components = list(iter_i18n_components(block))
-
-    def translate(lang, key):
-        return translation.get(lang, {}).get(key, key)
+    TranslateContext.add_translation(translation)
 
     def on_load(request: gr.Request):
-        lang = request.headers["Accept-Language"].split(",")[0].split("-")[0].lower()
-        if not lang:
-            return "en"
-        return lang
+        return get_lang_from_request(request)
 
-    def on_lang_change(lang: str):
+    def on_lang_change(request: gr.Request, lang: str):
+        TranslateContext.lang_per_session[request.session_hash] = lang
+
         outputs = []
         for component in components:
             fields = list(iter_i18n_fields(component))
@@ -176,13 +229,13 @@ def translate_blocks(
                     for idx in iter_i18n_choices(choices):
                         if isinstance(choices[idx], tuple):
                             k, v = choices[idx]
-                            choices[idx] = (translate(lang, k), v)
+                            choices[idx] = (str(k), I18nString.unwrap_string(v))
                         else:
                             v = choices[idx]
-                            choices[idx] = (translate(lang, v), v)
+                            choices[idx] = (str(v), I18nString.unwrap_string(v))
                     modified[field] = choices
                 else:
-                    modified[field] = translate(lang, getattr(component, field))
+                    modified[field] = str(getattr(component, field))
 
             new_comp = gr.update(**modified)
             outputs.append(new_comp)

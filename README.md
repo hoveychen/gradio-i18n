@@ -15,9 +15,11 @@ pip install gradio-i18n
 
 ## Basic Example
 
-If you want localized UI based on users' browser language, simply wrap your block definition with `gradio_i18n.Translate()`.
-* Wrap all your texts to localize with `gradio_i18n.gettext()`.
-* It supports a filepath or dict as the translation dict.
+If you want localized UI based on user's browser language, simply wrap your block definition with `gradio_i18n.Translate()`.
+* Wrap all your texts to localize with `gradio_i18n.gettext()`, refer to the example.
+* `Translate()` returns the user's language to pass to function inputs.
+* `Translate()` accepts a filepath or dict as the translation dict.
+* Optional argument `placeholder_langs` will fill key not translated as placeholder back to the disk file.
 
 ```python
 import gradio as gr
@@ -25,7 +27,7 @@ import gradio as gr
 from gradio_i18n import Translate, gettext as _
 
 def greet(name, gender, lang):
-    return f"Hello {name} {gender} in {lang}!"
+    return _("Greeting") + f"! Hello {name} {gender} in {lang}!"
 
 with gr.Blocks() as demo:
     with Translate("translation.yaml", placeholder_langs=["en", "zh", "ja", "ko", "es", "fr", "de"]) as lang:
@@ -44,17 +46,11 @@ demo.launch()
 
 ## Change UI language Example
 
-You may want user to choose their expected language, pass the component storing the language value to `gradion_i18n.Translate()`.
+You may want user to choose their expected language, pass the component controlling the language value to `gradion_i18n.Translate()`.
 
 ```python
-import gradio as gr
-
-from gradio_i18n import Translate
-from gradio_i18n import gettext as _
-
-
 def greet(name, gender, lang):
-    return f"Hello {name} {gender} in {lang}!"
+    return _("Greeting") + _("Hello {name} {gender} in {lang}").format(name=name, gender=gender, lang=lang)
 
 
 with gr.Blocks() as demo:
@@ -134,11 +130,11 @@ def get_lang(lang):
 
 
 with gr.Blocks() as block:
-    lang = gr.State()
+    lang = gr.Dropdown(choices=["zh", "en", "ja"])
     display_lang = gr.Text()
     btn = gr.Button()
     btn.click(get_lang, inputs=[lang], outputs=[display_lang])
-    gradio_i18n.translate_blocks(lang_state=lang)
+    gradio_i18n.translate_blocks(lang=lang)
 
 block.launch()
 ```

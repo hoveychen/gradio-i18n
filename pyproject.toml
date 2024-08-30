@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gradio-i18n"
-version = "0.0.8"
+version = "0.0.9"
 authors = [
   { name="Harry Chen", email="hoveychen@gmail.com" },
 ]

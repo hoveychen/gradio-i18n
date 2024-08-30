@@ -7,46 +7,51 @@ en:
   Unknown: Unknown
   Greeting: Greeting
   Submit: Submit
+  Hello {name} {gender} in {lang}: Hello {name} {gender} in {lang}
 
 zh:
   Language: 语言
-  Name: 姓名
-  Input your name here.: 在这里输入您的姓名。
-  Male: 男性
-  Female: 女性
+  Name: 名字
+  Input your name here.: 在这里输入您的名字。
+  Male: 男
+  Female: 女
   Unknown: 未知
   Greeting: 问候
   Submit: 提交
+  Hello {name} {gender} in {lang}: 你好 {name} {gender} 在 {lang}
 
 ja:
   Language: 言語
   Name: 名前
-  Input your name here.: ここに名前を入力してください。
+  Input your name here.: ここにあなたの名前を入力してください。
   Male: 男性
   Female: 女性
   Unknown: 不明
   Greeting: 挨拶
-  Submit: 提出
+  Submit: 送信
+  Hello {name} {gender} in {lang}: こんにちは {name} {gender} に {lang}
 
 ko:
   Language: 언어
   Name: 이름
-  Input your name here.: 여기에 이름을 입력하세요.
+  Input your name here.: 여기에 이름을 입력하십시오.
   Male: 남성
   Female: 여성
   Unknown: 알 수 없음
   Greeting: 인사
   Submit: 제출
+  Hello {name} {gender} in {lang}: 안녕하세요 {name} {gender} 님, {lang}에서
 
 es:
   Language: Idioma
   Name: Nombre
-  Input your name here.: Introduzca su nombre aquí.
+  Input your name here.: Ingrese su nombre aquí.
   Male: Masculino
   Female: Femenino
   Unknown: Desconocido
   Greeting: Saludo
   Submit: Enviar
+  Hello {name} {gender} in {lang}: Hola {name} {gender} en {lang}
 
 fr:
   Language: Langue
@@ -57,6 +62,7 @@ fr:
   Unknown: Inconnu
   Greeting: Salutation
   Submit: Soumettre
+  Hello {name} {gender} in {lang}: Bonjour {name} {gender} en {lang}
 
 de:
   Language: Sprache
@@ -65,5 +71,6 @@ de:
   Male: Männlich
   Female: Weiblich
   Unknown: Unbekannt
-  Greeting: Begrüßung
+  Greeting: Gruß
   Submit: Einreichen
+  Hello {name} {gender} in {lang}: Hallo {name} {gender} in {lang}
