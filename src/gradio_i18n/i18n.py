@@ -43,12 +43,21 @@ def get_lang_from_request(request: gr.Request):
 
 
 class I18nString(str):
+    def __new__(cls, value):
+        request: gr.Request = LocalContext.request.get()
+        if request is None:
+            return super().__new__(cls, value)
+
+        lang = TranslateContext.lang_per_session.get(request.session_hash, "en")
+        result = TranslateContext.dictionary.get(lang, {}).get(value, value)
+        return result
+
     def __str__(self):
         request: gr.Request = LocalContext.request.get()
         if request is None:
             return self
 
-        lang = TranslateContext.lang_per_session.get(request.session_hash, 'en')
+        lang = TranslateContext.lang_per_session.get(request.session_hash, "en")
         result = TranslateContext.dictionary.get(lang, {}).get(self, super().__str__())
         return result
 
