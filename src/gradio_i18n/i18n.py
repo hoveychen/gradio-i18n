@@ -1,3 +1,4 @@
+import functools
 import inspect
 import json
 import os
@@ -6,6 +7,20 @@ from contextlib import contextmanager
 import gradio as gr
 import yaml
 from gradio.blocks import Block, BlockContext, Context
+
+
+# Monkey patch to escape I18nString type being stripped in gradio.Markdown
+def escape_caller(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if args and isinstance(args[0], I18nString):
+            return I18nString(func(*args, **kwargs))
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+inspect.cleandoc = escape_caller(inspect.cleandoc)
 
 
 class I18nString(str):
