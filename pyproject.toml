@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "gradio"
+    "gradio", "pyyaml"
 ]
 
 [project.urls]
