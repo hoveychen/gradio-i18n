@@ -35,10 +35,31 @@ def gettext(key: str):
     return I18nString(key)
 
 
+def iter_i18n_choices(choices):
+    """Iterate all I18nStrings in the choice, returns the indices of the I18nStrings"""
+    if not isinstance(choices, list) or len(choices) == 0:
+        return
+
+    if isinstance(choices[0], tuple):
+        for i, (k, v) in enumerate(choices):
+            if isinstance(k, I18nString):
+                yield i
+
+    else:
+        for i, v in enumerate(choices):
+            if isinstance(v, I18nString):
+                yield i
+
+
 def iter_i18n_fields(component: gr.components.Component):
     """Iterate all I18nStrings in the component"""
     for name, value in inspect.getmembers(component):
+        if name == "value" and hasattr(component, "choices"):
+            # for those components with choices, the value will be kept as is
+            continue
         if isinstance(value, I18nString):
+            yield name
+        elif name == "choices" and any(iter_i18n_choices(value)):
             yield name
 
 
@@ -65,9 +86,18 @@ def has_new_i18n_fields(block: Block, langs=["en"], existing_translation={}):
     for lang in langs:
         for component in components:
             for field in iter_i18n_fields(component):
-                value = "" + getattr(component, field)
-                if value not in existing_translation.get(lang, {}):
-                    return True
+                if field == "choices":
+                    for idx in iter_i18n_choices(component.choices):
+                        if isinstance(component.choices[idx], tuple):
+                            value = component.choices[idx][0]
+                        else:
+                            value = component.choices[idx]
+                        if value not in existing_translation.get(lang, {}):
+                            return True
+                else:
+                    value = getattr(component, field)
+                    if value not in existing_translation.get(lang, {}):
+                        return True
 
     return False
 
@@ -81,7 +111,7 @@ def dump_blocks(block: Block, langs=["en"], include_translations={}):
     """
     components = list(iter_i18n_components(block))
 
-    def get(lang, key):
+    def translate(lang, key):
         return include_translations.get(lang, {}).get(key, key)
 
     ret = {}
@@ -90,8 +120,17 @@ def dump_blocks(block: Block, langs=["en"], include_translations={}):
         ret[lang] = {}
         for component in components:
             for field in iter_i18n_fields(component):
-                value = "" + getattr(component, field)
-                ret[lang][value] = get(lang, value)
+                if field == "choices":
+                    for idx in iter_i18n_choices(component.choices):
+                        if isinstance(component.choices[idx], tuple):
+                            value = component.choices[idx][0]
+                        else:
+                            value = component.choices[idx]
+                        value = "" + value
+                        ret[lang][value] = translate(lang, value)
+                else:
+                    value = "" + getattr(component, field)
+                    ret[lang][value] = translate(lang, value)
 
     return ret
 
@@ -113,7 +152,7 @@ def translate_blocks(
 
     components = list(iter_i18n_components(block))
 
-    def get(lang, key):
+    def translate(lang, key):
         return translation.get(lang, {}).get(key, key)
 
     def on_load(request: gr.Request):
@@ -129,7 +168,22 @@ def translate_blocks(
             if component == lang and "value" in fields:
                 raise ValueError("'lang' component can't has I18nStrings as value")
 
-            modified = {field: get(lang, getattr(component, field)) for field in fields}
+            modified = {}
+
+            for field in fields:
+                if field == "choices":
+                    choices = component.choices.copy()
+                    for idx in iter_i18n_choices(choices):
+                        if isinstance(choices[idx], tuple):
+                            k, v = choices[idx]
+                            choices[idx] = (translate(lang, k), v)
+                        else:
+                            v = choices[idx]
+                            choices[idx] = (translate(lang, v), v)
+                    modified[field] = choices
+                else:
+                    modified[field] = translate(lang, getattr(component, field))
+
             new_comp = gr.update(**modified)
             outputs.append(new_comp)
 
@@ -194,4 +248,4 @@ def Translate(translation, lang: gr.components.Component = None, placeholder_lan
             if translation.endswith(".json"):
                 json.dump(merged, f, indent=2, ensure_ascii=False)
             elif translation.endswith(".yaml"):
-                yaml.dump(merged, f, allow_unicode=True)
+                yaml.dump(merged, f, allow_unicode=True, sort_keys=False)
