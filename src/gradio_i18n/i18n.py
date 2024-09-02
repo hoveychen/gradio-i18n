@@ -2,6 +2,7 @@ import functools
 import inspect
 import json
 import os
+import traceback
 from contextlib import contextmanager
 
 import gradio as gr
@@ -14,7 +15,13 @@ def escape_caller(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if args and isinstance(args[0], I18nString):
-            return I18nString(func(*args, **kwargs))
+            add_values = args[0].add_values
+            radd_values = args[0].radd_values
+            result = I18nString(func(*args, **kwargs))
+            result.add_values = add_values
+            result.radd_values = radd_values
+
+            return result
         return func(*args, **kwargs)
 
     return wrapper
@@ -52,6 +59,14 @@ class I18nString(str):
         result = TranslateContext.dictionary.get(lang, {}).get(value, value)
         return result
 
+    def __init__(self, value):
+        if isinstance(value, I18nString):
+            self.add_values = value.add_values
+            self.radd_values = value.radd_values
+        else:
+            self.add_values = []
+            self.radd_values = []
+
     def __str__(self):
         request: gr.Request = LocalContext.request.get()
         if request is None:
@@ -59,18 +74,31 @@ class I18nString(str):
 
         lang = TranslateContext.lang_per_session.get(request.session_hash, "en")
         result = TranslateContext.dictionary.get(lang, {}).get(self, super().__str__())
+
+        for v in self.radd_values:
+            result = str(v) + result
+
+        for v in self.add_values:
+            result = result + str(v)
+
+        # hotfix, remove unexpected single quotes
+        while len(result) >= 2 and result.startswith("'") and result.endswith("'"):
+            result = result[1:-1]
+
         return result
 
     def __add__(self, other):
         v = str(self)
         if isinstance(v, I18nString):
-            return super().__add__(other)
+            self.add_values.append(other)
+            return self
         return v.__add__(other)
 
     def __radd__(self, other):
         v = str(self)
         if isinstance(v, I18nString):
-            return other.__add__(other)
+            self.radd_values.append(other)
+            return self
         return other.__add__(v)
 
     def __hash__(self) -> int:
@@ -86,10 +114,16 @@ class I18nString(str):
         return super().__str__()
 
     @staticmethod
-    def unwrap_string(obj):
+    def unwrap_strings(obj):
+        """Unwrap all keys in I18nStrings in the object"""
         if isinstance(obj, I18nString):
-            return obj.unwrap()
-        return obj
+            yield obj.unwrap()
+            for v in obj.add_values:
+                yield from I18nString.unwrap_strings(v)
+            for v in obj.radd_values:
+                yield from I18nString.unwrap_strings(v)
+            return
+        yield obj
 
 
 def gettext(key: str):
@@ -190,12 +224,12 @@ def dump_blocks(block: Block, langs=["en"], include_translations={}):
                             value = component.choices[idx][0]
                         else:
                             value = component.choices[idx]
-                        value = I18nString.unwrap_string(value)
-                        ret[lang][value] = translate(lang, value)
+                        for key in I18nString.unwrap_strings(value):
+                            ret[lang][key] = translate(lang, key)
                 else:
                     value = getattr(component, field)
-                    value = I18nString.unwrap_string(value)
-                    ret[lang][value] = translate(lang, value)
+                    for key in I18nString.unwrap_strings(value):
+                        ret[lang][key] = translate(lang, key)
 
     return ret
 
@@ -218,13 +252,21 @@ def translate_blocks(
     components = list(iter_i18n_components(block))
     TranslateContext.add_translation(translation)
 
+    hidden = gr.HTML(
+        value="""<style>
+                    gradio-app {
+                        visibility: hidden;
+                    }
+                     </style>"""
+    )
+
     def on_load(request: gr.Request):
         return get_lang_from_request(request)
 
     def on_lang_change(request: gr.Request, lang: str):
         TranslateContext.lang_per_session[request.session_hash] = lang
 
-        outputs = []
+        outputs = [""]
         for component in components:
             fields = list(iter_i18n_fields(component))
             if component == lang and "value" in fields:
@@ -238,10 +280,11 @@ def translate_blocks(
                     for idx in iter_i18n_choices(choices):
                         if isinstance(choices[idx], tuple):
                             k, v = choices[idx]
-                            choices[idx] = (str(k), I18nString.unwrap_string(v))
+                            # We don't need to translate the value
+                            choices[idx] = (str(k), next(I18nString.unwrap_strings(v)))
                         else:
                             v = choices[idx]
-                            choices[idx] = (str(v), I18nString.unwrap_string(v))
+                            choices[idx] = (str(v), next(I18nString.unwrap_strings(v)))
                     modified[field] = choices
                 else:
                     modified[field] = str(getattr(component, field))
@@ -258,7 +301,7 @@ def translate_blocks(
         lang = gr.State()
 
     block.load(on_load, outputs=[lang])
-    lang.change(on_lang_change, inputs=[lang], outputs=components)
+    lang.change(on_lang_change, inputs=[lang], outputs=[hidden] + components)
 
 
 @contextmanager
