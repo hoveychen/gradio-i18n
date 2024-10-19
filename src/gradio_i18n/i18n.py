@@ -323,7 +323,7 @@ def Translate(translation, lang: gr.components.Component = None, placeholder_lan
     elif isinstance(translation, str):
         if os.path.exists(translation):
             # Regard as a file path
-            with open(translation, "r") as f:
+            with open(translation, "r", encoding=find_encoding(translation)) as f:
                 if translation.endswith(".json"):
                     translation_dict = json.load(f)
                 elif translation.endswith(".yaml"):
@@ -354,3 +354,13 @@ def Translate(translation, lang: gr.components.Component = None, placeholder_lan
                 json.dump(merged, f, indent=2, ensure_ascii=False)
             elif translation.endswith(".yaml"):
                 yaml.dump(merged, f, allow_unicode=True, sort_keys=False)
+
+
+def find_encoding(file_path):
+    encoding = None
+    f = open(file_path, 'r', encoding=encoding)
+    try:
+        line = f.readline()
+    except UnicodeDecodeError:
+        encoding = 'utf-8'
+    return encoding
