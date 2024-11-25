@@ -4,9 +4,11 @@ import json
 import os
 import traceback
 from contextlib import contextmanager
+from functools import lru_cache
 
 import gradio as gr
 import yaml
+import langcodes
 from gradio.blocks import Block, BlockContext, Context, LocalContext
 
 
@@ -39,15 +41,23 @@ class TranslateContext:
                 TranslateContext.dictionary[k] = {}
             TranslateContext.dictionary[k].update(v)
 
+    def lookup_closest_lang(lang: str) -> str:
+        supported_langs = tuple(TranslateContext.dictionary.keys())
+        return lookup_closest_lang(lang, supported_langs)
+
     lang_per_session = {}
 
 
 def get_lang_from_request(request: gr.Request):
-    lang = request.headers["Accept-Language"].split(",")[0].split("-")[0].lower()
+    lang = request.headers["Accept-Language"].split(",")[0].lower()
     if not lang:
         return "en"
     return lang
 
+@lru_cache
+def lookup_closest_lang(lang: str, supported_langs: tuple[str]) -> str:
+    matched_lang, _ = langcodes.closest_match(lang, supported_langs)
+    return matched_lang
 
 class I18nString(str):
     def __new__(cls, value):
@@ -56,7 +66,8 @@ class I18nString(str):
             return super().__new__(cls, value)
 
         lang = TranslateContext.lang_per_session.get(request.session_hash, "en")
-        result = TranslateContext.dictionary.get(lang, {}).get(value, value)
+        matched_lang = TranslateContext.lookup_closest_lang(lang)
+        result = TranslateContext.dictionary.get(matched_lang, {}).get(value, value)
         return result
 
     def __init__(self, value):
@@ -73,7 +84,8 @@ class I18nString(str):
             return self
 
         lang = TranslateContext.lang_per_session.get(request.session_hash, "en")
-        result = TranslateContext.dictionary.get(lang, {}).get(self, super().__str__())
+        matched_lang = TranslateContext.lookup_closest_lang(lang)
+        result = TranslateContext.dictionary.get(matched_lang, {}).get(self, super().__str__())
 
         for v in self.radd_values:
             result = str(v) + result
@@ -261,7 +273,9 @@ def translate_blocks(
     )
 
     def on_load(request: gr.Request):
-        return get_lang_from_request(request)
+        lang = get_lang_from_request(request)
+        matched_lang = TranslateContext.lookup_closest_lang(lang)
+        return matched_lang
 
     def on_lang_change(request: gr.Request, lang: str):
         TranslateContext.lang_per_session[request.session_hash] = lang

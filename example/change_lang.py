@@ -15,6 +15,7 @@ with gr.Blocks() as demo:
         choices=[
             ("English", "en"),
             ("中文", "zh"),
+            ("中文(繁體)", "zh-Hant"),
             ("日本語", "ja"),
             ("한국인", "ko"),
             ("español", "es"),
@@ -26,7 +27,7 @@ with gr.Blocks() as demo:
     with Translate(
         "translation.yaml",
         lang,
-        placeholder_langs=["en", "zh", "ja", "ko", "es", "fr", "de"],
+        placeholder_langs=["en", "zh", "zh-Hant", "ja", "ko", "es", "fr", "de"],
     ):
         name = gr.Textbox(label=_("Name"), placeholder=_("Input your name here."))
         gender = gr.Radio(choices=[_("Male"), _("Female"), _("Unknown")])
