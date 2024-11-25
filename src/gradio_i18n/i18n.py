@@ -4,7 +4,6 @@ import json
 import os
 import traceback
 from contextlib import contextmanager
-from functools import lru_cache
 
 import gradio as gr
 import yaml
@@ -54,7 +53,7 @@ def get_lang_from_request(request: gr.Request):
         return "en"
     return lang
 
-@lru_cache
+@functools.lru_cache
 def lookup_closest_lang(lang: str, supported_langs: tuple[str]) -> str:
     matched_lang, _ = langcodes.closest_match(lang, supported_langs)
     return matched_lang
