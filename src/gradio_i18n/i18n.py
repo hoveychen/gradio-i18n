@@ -2,10 +2,10 @@ import functools
 import inspect
 import json
 import os
-import traceback
 from contextlib import contextmanager
 
 import gradio as gr
+import langcodes
 import yaml
 from gradio.blocks import Block, BlockContext, Context, LocalContext
 
@@ -39,11 +39,32 @@ class TranslateContext:
                 TranslateContext.dictionary[k] = {}
             TranslateContext.dictionary[k].update(v)
 
+    def get_available_languages():
+        return list(TranslateContext.dictionary.keys())
+
     lang_per_session = {}
+
+    def get_current_language(request: gr.Request):
+        return TranslateContext.lang_per_session.get(
+            request.session_hash, TranslateContext.default_language
+        )
+
+    def set_current_language(request: gr.Request, lang: str):
+        TranslateContext.lang_per_session[request.session_hash] = lang
+
+    default_language = "en"
+
+    def get_default_language():
+        return TranslateContext.default_language
+
+    def set_default_language(lang: str):
+        TranslateContext.default_language = lang
 
 
 def get_lang_from_request(request: gr.Request):
-    lang = request.headers["Accept-Language"].split(",")[0].split("-")[0].lower()
+    lang = request.headers["Accept-Language"].split(",")[0]
+    lang, _ = langcodes.closest_match(lang, TranslateContext.get_available_languages())
+
     if not lang:
         return "en"
     return lang
@@ -55,7 +76,7 @@ class I18nString(str):
         if request is None:
             return super().__new__(cls, value)
 
-        lang = TranslateContext.lang_per_session.get(request.session_hash, "en")
+        lang = TranslateContext.get_current_language(request)
         result = TranslateContext.dictionary.get(lang, {}).get(value, value)
         return result
 
@@ -72,7 +93,7 @@ class I18nString(str):
         if request is None:
             return self
 
-        lang = TranslateContext.lang_per_session.get(request.session_hash, "en")
+        lang = TranslateContext.get_current_language(request)
         result = TranslateContext.dictionary.get(lang, {}).get(self, super().__str__())
 
         for v in self.radd_values:
@@ -235,12 +256,16 @@ def dump_blocks(block: Block, langs=["en"], include_translations={}):
 
 
 def translate_blocks(
-    block: gr.Blocks = None, translation={}, lang: gr.components.Component = None
+    block: gr.Blocks = None,
+    translation={},
+    lang: gr.components.Component = None,
+    persistant=False,
 ):
     """Translate all I18nStrings in the block
     :param block: The block to translate, default is the root block
     :param translation: The translation dictionary
     :param lang: The language component to change the language
+    :param persistant: Whether to persist the language
     """
     if block is None:
         block = Context.root_block
@@ -260,13 +285,27 @@ def translate_blocks(
                      </style>"""
     )
 
-    def on_load(request: gr.Request):
-        return get_lang_from_request(request)
+    if persistant:
+        try:
+            from gradio import BrowserState
+        except ImportError:
+            raise ValueError("gradio>=5.6.0 is required for persistant language")
 
-    def on_lang_change(request: gr.Request, lang: str):
-        TranslateContext.lang_per_session[request.session_hash] = lang
+    def on_lang_change(request: gr.Request, lang: str, saved_lang: str):
+        if not lang:
+            if saved_lang:
+                lang = saved_lang
+            else:
+                lang = get_lang_from_request(request)
 
-        outputs = [""]
+        outputs = [lang, lang, ""]
+        if TranslateContext.get_current_language(request) == lang:
+            for component in components:
+                outputs.append(gr.update())
+            return outputs
+
+        TranslateContext.set_current_language(request, lang)
+
         for component in components:
             fields = list(iter_i18n_fields(component))
             if component == lang and "value" in fields:
@@ -300,16 +339,31 @@ def translate_blocks(
     if lang is None:
         lang = gr.State()
 
-    block.load(on_load, outputs=[lang])
-    lang.change(on_lang_change, inputs=[lang], outputs=[hidden] + components)
+    if persistant:
+        saved_lang = gr.BrowserState(storage_key="lang")
+    else:
+        saved_lang = gr.State()
+
+    gr.on(
+        [block.load, lang.change],
+        on_lang_change,
+        inputs=[lang, saved_lang],
+        outputs=[lang, saved_lang, hidden] + components,
+    )
 
 
 @contextmanager
-def Translate(translation, lang: gr.components.Component = None, placeholder_langs=[]):
+def Translate(
+    translation,
+    lang: gr.components.Component = None,
+    placeholder_langs=[],
+    persistant=False,
+):
     """Translate all I18nStrings in the block
     :param translation: The translation dictionary or file path
     :param lang: The language component to change the language
     :param placeholder_langs: The placeholder languages to create a new translation file if translation is a file path
+    :param persistant: Whether to persist the language
     :return: The language component
     """
     if lang is None:
@@ -323,7 +377,7 @@ def Translate(translation, lang: gr.components.Component = None, placeholder_lan
     elif isinstance(translation, str):
         if os.path.exists(translation):
             # Regard as a file path
-            with open(translation, "r", encoding='utf-8') as f: # Force utf-8 encoding
+            with open(translation, "r", encoding="utf-8") as f:  # Force utf-8 encoding
                 if translation.endswith(".json"):
                     translation_dict = json.load(f)
                 elif translation.endswith(".yaml"):
@@ -336,7 +390,9 @@ def Translate(translation, lang: gr.components.Component = None, placeholder_lan
         raise ValueError("Unsupported translation type")
 
     block = Context.block
-    translate_blocks(block=block, translation=translation_dict, lang=lang)
+    translate_blocks(
+        block=block, translation=translation_dict, lang=lang, persistant=persistant
+    )
 
     if (
         placeholder_langs
@@ -354,13 +410,3 @@ def Translate(translation, lang: gr.components.Component = None, placeholder_lan
                 json.dump(merged, f, indent=2, ensure_ascii=False)
             elif translation.endswith(".yaml"):
                 yaml.dump(merged, f, allow_unicode=True, sort_keys=False)
-
-
-def find_encoding(file_path):
-    encoding = None
-    f = open(file_path, 'r', encoding=encoding)
-    try:
-        line = f.readline()
-    except UnicodeDecodeError:
-        encoding = 'utf-8'
-    return encoding
