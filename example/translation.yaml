@@ -20,6 +20,17 @@ zh:
   Submit: 提交
   Hello {name} {gender} in {lang}: 你好 {name} {gender} 在 {lang}
 
+zh-Hant:
+  Language: 語言
+  Name: 名字
+  Input your name here.: 在這裡輸入您的名字。
+  Male: 男
+  Female: 女
+  Unknown: 未知
+  Greeting: 問候
+  Submit: 送出
+  Hello {name} {gender} in {lang}: 你好 {name} {gender} 在 {lang}
+
 ja:
   Language: 言語
   Name: 名前

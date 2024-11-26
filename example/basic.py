@@ -10,7 +10,8 @@ def greet(name, gender, lang):
 
 with gr.Blocks() as demo:
     with Translate(
-        "translation.yaml", placeholder_langs=["en", "zh", "ja", "ko", "es", "fr", "de"]
+        "translation.yaml",
+        placeholder_langs=["en", "zh", "zh-Hant", "ja", "ko", "es", "fr", "de"],
     ) as lang:
         name = gr.Textbox(label=_("Name"), placeholder=_("Input your name here."))
         gender = gr.Radio(choices=[_("Male"), _("Female"), _("Unknown")])

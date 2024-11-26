@@ -7,6 +7,9 @@
 
 Reactive Multi-language Gradio App with minimal effort. Enables Gradio app displayiing localized UI responding to the browser language settings.
 
+## Changelog
+* v0.2.0: Support persistant language setting in the browser. Support language variants like `zh-Hant`.
+
 ## Installation
     
 ```bash 
@@ -30,7 +33,7 @@ def greet(name, gender, lang):
     return _("Greeting") + f"! Hello {name} {gender} in {lang}!"
 
 with gr.Blocks() as demo:
-    with Translate("translation.yaml", placeholder_langs=["en", "zh", "ja", "ko", "es", "fr", "de"]) as lang:
+    with Translate("translation.yaml", placeholder_langs=["en", "zh", "zh-Hant", "ja", "ko", "es", "fr", "de"]) as lang:
         name = gr.Textbox(
             label=_("Name"), placeholder=_("Input your name here.")
         )
@@ -47,15 +50,37 @@ demo.launch()
 ## Change UI language Example
 
 You may want user to choose their expected language, pass the component controlling the language value to `gradion_i18n.Translate()`.
+If you want to save the language settings after user has chosen the language, pass `persistent=True` in `Translate()` or `translate_blocks()`(Note: gradio >= 5.6.0 is required).
 
 ```python
 def greet(name, gender, lang):
-    return _("Greeting") + _("Hello {name} {gender} in {lang}").format(name=name, gender=gender, lang=lang)
+    return _("Greeting") + _("Hello {name} {gender} in {lang}").format(
+        name=name, gender=gender, lang=lang
+    )
 
 
 with gr.Blocks() as demo:
-    lang = gr.Radio(choices=[("English", "en"), ("中文", "zh"), ("日本語", "ja"), ("한국인", "ko"), ("español", "es"), ("française", "fr"), ("Deutsch", "de")], label=_("Language"))
-    with Translate("translation.yaml", lang, placeholder_langs=["en", "zh", "ja", "ko", "es", "fr", "de"]):
+    lang = gr.Radio(
+        choices=[
+            ("English", "en"),
+            ("简体中文", "zh"),
+            ("繁體中文", "zh-Hant"),
+            ("日本語", "ja"),
+            ("한국인", "ko"),
+            ("español", "es"),
+            ("française", "fr"),
+            ("Deutsch", "de"),
+        ],
+        label=_("Language"),
+        render=False,  # You may define the choices ahead before passing to Translate blocks.
+    )
+    with Translate(
+        "translation.yaml",
+        lang,
+        placeholder_langs=["en", "zh", "zh-Hant", "ja", "ko", "es", "fr", "de"],
+        persistant=False,  # True to save the language setting in the browser. Requires gradio >= 5.6.0
+    ):
+        lang.render()
         name = gr.Textbox(label=_("Name"), placeholder=_("Input your name here."))
         gender = gr.Radio(choices=[_("Male"), _("Female"), _("Unknown")])
         output = gr.Textbox(label=_("Greeting"))
