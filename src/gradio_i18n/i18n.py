@@ -7,7 +7,8 @@ from contextlib import contextmanager
 import gradio as gr
 import langcodes
 import yaml
-from gradio.blocks import Block, BlockContext, Context, LocalContext
+from gradio.blocks import Block, BlockContext, Context
+from gradio.context import LocalContext
 
 
 # Monkey patch to escape I18nString type being stripped in gradio.Markdown
