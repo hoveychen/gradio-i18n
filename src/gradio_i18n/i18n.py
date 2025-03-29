@@ -62,11 +62,11 @@ class TranslateContext:
 
 
 def get_lang_from_request(request: gr.Request):
-    lang = request.headers["Accept-Language"].split(",")[0]
-    lang, _ = langcodes.closest_match(lang, TranslateContext.get_available_languages())
-
-    if not lang:
-        return "en"
+    if "Accept-Language" in request.headers:
+        lang = request.headers["Accept-Language"].split(",")[0]
+        lang, _ = langcodes.closest_match(lang, TranslateContext.get_available_languages())    # returns "und" (Undetermined language) for no match
+    else:
+        lang = "und"
     return lang
 
 
