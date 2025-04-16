@@ -31,43 +31,50 @@ inspect.cleandoc = escape_caller(inspect.cleandoc)
 
 
 class TranslateContext:
+    available_languages = ["en"]
     dictionary: dict = {}
+    lang_per_session = {}
+
+    def get_available_languages():
+        return TranslateContext.available_languages
+
+    def set_available_languages(langs: list):
+        if not langs or not isinstance(langs, list):
+            raise ValueError("langs must be a list of languages")
+        TranslateContext.available_languages = langs
+
+    def get_default_language():
+        return TranslateContext.get_available_languages()[0]
 
     def add_translation(translation: dict):
         for k, v in translation.items():
+            if k not in TranslateContext.available_languages:
+                continue
             if k not in TranslateContext.dictionary:
                 TranslateContext.dictionary[k] = {}
             TranslateContext.dictionary[k].update(v)
 
-    def get_available_languages():
-        return list(TranslateContext.dictionary.keys())
-
-    lang_per_session = {}
-
     def get_current_language(request: gr.Request):
         return TranslateContext.lang_per_session.get(
-            request.session_hash, TranslateContext.default_language
+            request.session_hash, TranslateContext.get_default_language()
         )
 
     def set_current_language(request: gr.Request, lang: str):
         TranslateContext.lang_per_session[request.session_hash] = lang
 
-    default_language = "en"
+    def get_lang_from_request(request: gr.Request):
+        if "Accept-Language" not in request.headers:
+            return TranslateContext.get_default_language()
 
-    def get_default_language():
-        return TranslateContext.default_language
+        # Get the first language from the Accept-Language header
+        lang = request.headers["Accept-Language"].split(",")[0]
+        lang, _ = langcodes.closest_match(
+            lang, TranslateContext.get_available_languages()
+        )
 
-    def set_default_language(lang: str):
-        TranslateContext.default_language = lang
-
-
-def get_lang_from_request(request: gr.Request):
-    lang = request.headers["Accept-Language"].split(",")[0]
-    lang, _ = langcodes.closest_match(lang, TranslateContext.get_available_languages())
-
-    if not lang:
-        return "en"
-    return lang
+        if not lang or lang == "und":
+            return TranslateContext.get_default_language()
+        return lang
 
 
 class I18nString(str):
@@ -193,16 +200,14 @@ def iter_i18n_components(block: Block):
         yield block
 
 
-def has_new_i18n_fields(block: Block, langs=["en"], existing_translation={}):
+def has_new_i18n_fields(block: Block, existing_translation={}):
     """Check if there are new I18nStrings in the block
     :param block: The block to check
-    :param langs: The languages to check
     :param existing_translation: The existing translation dictionary
     :return: True if there are new I18nStrings, False otherwise
     """
     components = list(iter_i18n_components(block))
-
-    for lang in langs:
+    for lang in TranslateContext.get_available_languages():
         for component in components:
             for field in iter_i18n_fields(component):
                 if field == "choices":
@@ -221,10 +226,9 @@ def has_new_i18n_fields(block: Block, langs=["en"], existing_translation={}):
     return False
 
 
-def dump_blocks(block: Block, langs=["en"], include_translations={}):
+def dump_blocks(block: Block, include_translations={}):
     """Dump all I18nStrings in the block to a dictionary
     :param block: The block to dump
-    :param langs: The languages to dump
     :param include_translations: The existing translation dictionary
     :return: The dumped dictionary
     """
@@ -235,7 +239,7 @@ def dump_blocks(block: Block, langs=["en"], include_translations={}):
 
     ret = {}
 
-    for lang in langs:
+    for lang in TranslateContext.get_available_languages():
         ret[lang] = {}
         for component in components:
             for field in iter_i18n_fields(component):
@@ -296,14 +300,9 @@ def translate_blocks(
             if saved_lang:
                 lang = saved_lang
             else:
-                lang = get_lang_from_request(request)
+                lang = TranslateContext.get_lang_from_request(request)
 
         outputs = [lang, lang, ""]
-        if TranslateContext.get_current_language(request) == lang:
-            for component in components:
-                outputs.append(gr.update())
-            return outputs
-
         TranslateContext.set_current_language(request, lang)
 
         for component in components:
@@ -389,21 +388,18 @@ def Translate(
     else:
         raise ValueError("Unsupported translation type")
 
+    if placeholder_langs:
+        TranslateContext.set_available_languages(placeholder_langs)
+
     block = Context.block
     translate_blocks(
         block=block, translation=translation_dict, lang=lang, persistant=persistant
     )
 
-    if (
-        placeholder_langs
-        and isinstance(translation, str)
-        and has_new_i18n_fields(
-            block, langs=placeholder_langs, existing_translation=translation_dict
-        )
+    if isinstance(translation, str) and has_new_i18n_fields(
+        block, existing_translation=translation_dict
     ):
-        merged = dump_blocks(
-            block, langs=placeholder_langs, include_translations=translation_dict
-        )
+        merged = dump_blocks(block, include_translations=translation_dict)
 
         with open(translation, "w") as f:
             if translation.endswith(".json"):
