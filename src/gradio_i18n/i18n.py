@@ -388,6 +388,9 @@ def Translate(
     else:
         raise ValueError("Unsupported translation type")
 
+    if not placeholder_langs:
+        placeholder_langs = list(translation_dict.keys())
+
     if placeholder_langs:
         TranslateContext.set_available_languages(placeholder_langs)
 
