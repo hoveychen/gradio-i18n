@@ -30,9 +30,7 @@ import gradio as gr
 from gradio_i18n import Translate, gettext as _
 
 def greet(name, gender, lang):
-    return _("Greeting") + _("Hello {name} {gender} in {lang}",
-        name=name, gender=gender, lang=lang 
-    )
+    return _("Greeting") + _("Hello {name} {gender} in {lang}")
 
 with gr.Blocks() as demo:
     with Translate("translation.yaml", placeholder_langs=["en", "zh", "zh-Hant", "ja", "ko", "es", "fr", "de"]) as lang:
@@ -56,9 +54,7 @@ If you want to save the language settings after user has chosen the language, pa
 
 ```python
 def greet(name, gender, lang):
-    return _("Greeting") + _("Hello {name} {gender} in {lang}",
-        name=name, gender=gender, lang=lang
-    )
+    return _("Greeting") + _("Hello {name} {gender} in {lang}")
 
 
 with gr.Blocks() as demo:

@@ -2,6 +2,7 @@ import functools
 import inspect
 import json
 import os
+import string
 from contextlib import contextmanager
 
 import gradio as gr
@@ -160,10 +161,40 @@ def gettext(key: str, *args, **kwargs):
     :param args: Positional arguments to format the string
     :param kwargs: Keyword arguments to format the string
     :return: I18nString, formatted if args or kwargs are provided
+    
+    If no args or kwargs are provided, this function will automatically extract
+    placeholder variables from the caller's local scope.
+    
+    Example:
+        def greet(name, age):
+            return _("Hello {name}, you are {age} years old")
     """
     result = I18nString(key)
+    
+    # If explicit args/kwargs are provided, use them directly
     if args or kwargs:
         return result.format(*args, **kwargs)
+    
+    # Try to extract placeholder names from the key
+    try:
+        formatter = string.Formatter()
+        field_names = [field_name for _, field_name, _, _ in formatter.parse(key) if field_name]
+        
+        # If there are placeholders, try to get values from caller's locals
+        if field_names:
+            frame = inspect.currentframe()
+            if frame and frame.f_back:
+                caller_locals = frame.f_back.f_locals
+                # Extract values for all placeholders that exist in caller's locals
+                auto_kwargs = {name: caller_locals[name] for name in field_names if name in caller_locals}
+                
+                # Only format if we found at least one matching variable
+                if auto_kwargs:
+                    return result.format(**auto_kwargs)
+    except (ValueError, KeyError):
+        # If parsing or extraction fails, just return the result as is
+        pass
+    
     return result
 
 
