@@ -154,11 +154,17 @@ class I18nString(str):
         yield obj
 
 
-def gettext(key: str):
+def gettext(key: str, *args, **kwargs):
     """Wrapper text string to return I18nString
     :param key: The key of the I18nString
+    :param args: Positional arguments to format the string
+    :param kwargs: Keyword arguments to format the string
+    :return: I18nString, formatted if args or kwargs are provided
     """
-    return I18nString(key)
+    result = I18nString(key)
+    if args or kwargs:
+        return result.format(*args, **kwargs)
+    return result
 
 
 def iter_i18n_choices(choices):

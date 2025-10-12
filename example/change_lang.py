@@ -5,7 +5,7 @@ from gradio_i18n import gettext as _
 
 
 def greet(name, gender, lang):
-    return _("Greeting") + _("Hello {name} {gender} in {lang}").format(
+    return _("Greeting") + _("Hello {name} {gender} in {lang}", 
         name=name, gender=gender, lang=lang
     )
 
