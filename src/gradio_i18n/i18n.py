@@ -79,7 +79,7 @@ class TranslateContext:
 
 class I18nString(str):
     def __new__(cls, value):
-        request: gr.Request = LocalContext.request.get()
+        request: gr.Request = LocalContext.request.get(None) # Fixed line
         if request is None:
             return super().__new__(cls, value)
 
@@ -96,7 +96,7 @@ class I18nString(str):
             self.radd_values = []
 
     def __str__(self):
-        request: gr.Request = LocalContext.request.get()
+        request: gr.Request = LocalContext.request.get(None) # Fixed line
         if request is None:
             return self
 
